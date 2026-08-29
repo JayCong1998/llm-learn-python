@@ -1,6 +1,8 @@
 """构建不同类型的 LangChain 提示词模板。"""
 
 # 导入聊天提示词、少样本模板和消息占位符类。
+from langchain_core.example_selectors import LengthBasedExampleSelector
+# 导入聊天提示词、少样本模板和消息占位符类。
 from langchain_core.prompts import (
     ChatPromptTemplate,
     FewShotChatMessagePromptTemplate,
@@ -87,4 +89,32 @@ def build_few_shot_chat_prompt() -> ChatPromptTemplate:
             few_shot_prompt,
             ("human", "{question}"),
         ]
+    )
+
+
+# 定义构建长度筛选少样本提示词模板的函数。
+def build_selector_prompt() -> FewShotPromptTemplate:
+    """返回会按长度选择示例的少样本文本提示词。"""
+    # 定义供选择器挑选的示例集合。
+    examples = [
+        {"text": "晴天", "description": "阳光充足，适合户外活动。"},
+        {"text": "阴天", "description": "云层较多，出行可携带雨具。"},
+        {"text": "大风", "description": "风力明显，外出请注意安全。"},
+    ]
+    # 定义选择器计算样本长度时使用的格式。
+    example_prompt = PromptTemplate.from_template(
+        "输入：{text}\n描述：{description}"
+    )
+    # 创建限制示例总长度的选择器。
+    selector = LengthBasedExampleSelector(
+        examples=examples,
+        example_prompt=example_prompt,
+        max_length=60,
+    )
+    # 将选择器和最终输入组合为少样本提示词。
+    return FewShotPromptTemplate(
+        example_selector=selector,
+        example_prompt=example_prompt,
+        suffix="输入：{text}\n描述：",
+        input_variables=["text"],
     )
