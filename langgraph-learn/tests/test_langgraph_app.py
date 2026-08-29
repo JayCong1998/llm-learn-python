@@ -1,11 +1,19 @@
+import importlib.util
 import sys
 from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+APP_PATH = Path(__file__).resolve().parents[1] / "app.py"
+SPEC = importlib.util.spec_from_file_location("langgraph_learn_app", APP_PATH)
+assert SPEC and SPEC.loader
+APP = importlib.util.module_from_spec(SPEC)
+sys.modules[SPEC.name] = APP
+SPEC.loader.exec_module(APP)
 
-from app import ConfigurationError, build_graph, get_settings
+ConfigurationError = APP.ConfigurationError
+build_graph = APP.build_graph
+get_settings = APP.get_settings
 
 
 def test_get_settings_requires_api_key(monkeypatch):
