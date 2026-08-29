@@ -26,6 +26,8 @@ class Settings:
     api_key: str
     # 声明模型名称字段。
     model: str
+    # 声明 OpenAI 兼容服务的基础地址字段。
+    base_url: str
 
 
 # 定义读取并校验模型配置的函数。
@@ -41,8 +43,14 @@ def get_settings() -> Settings:
         raise ConfigurationError(
             "OPENAI_API_KEY is missing. Copy .env.example to .env and add your key."
         )
-    # 返回密钥和模型名称组成的配置对象。
-    return Settings(api_key=api_key, model=os.getenv("OPENAI_MODEL", "gpt-4.1-mini"))
+    # 读取 OpenAI 兼容服务的基础地址。
+    base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
+    # 返回密钥、模型名称和服务地址组成的配置对象。
+    return Settings(
+        api_key=api_key,
+        model=os.getenv("OPENAI_MODEL", "gpt-4.1-mini"),
+        base_url=base_url,
+    )
 
 
 # 定义向聊天模型提问的函数。
@@ -50,7 +58,11 @@ def ask_question(question: str) -> str:
     """Send one question to the configured chat model."""
     # 获取已经校验过的模型配置。
     settings = get_settings()
-    # 使用配置创建 LangChain 聊天模型实例。
-    model = ChatOpenAI(model=settings.model, api_key=settings.api_key)
+    # 使用配置创建指向指定服务端点的 LangChain 聊天模型实例。
+    model = ChatOpenAI(
+        model=settings.model,
+        api_key=settings.api_key,
+        base_url=settings.base_url,
+    )
     # 调用模型并将回复内容转换为字符串。
     return str(model.invoke(question).content)

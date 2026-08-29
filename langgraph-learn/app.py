@@ -30,6 +30,8 @@ class Settings:
     api_key: str
     # 声明模型名称字段。
     model: str
+    # 声明 OpenAI 兼容服务的基础地址字段。
+    base_url: str
 
 
 # 定义图工作流中传递的数据结构。
@@ -53,8 +55,14 @@ def get_settings() -> Settings:
         raise ConfigurationError(
             "OPENAI_API_KEY is missing. Copy .env.example to .env and add your key."
         )
-    # 返回密钥和模型名称组成的配置对象。
-    return Settings(api_key=api_key, model=os.getenv("OPENAI_MODEL", "gpt-4.1-mini"))
+    # 读取 OpenAI 兼容服务的基础地址。
+    base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
+    # 返回密钥、模型名称和服务地址组成的配置对象。
+    return Settings(
+        api_key=api_key,
+        model=os.getenv("OPENAI_MODEL", "gpt-4.1-mini"),
+        base_url=base_url,
+    )
 
 
 # 定义构建最小 LangGraph 工作流的函数。
@@ -62,8 +70,12 @@ def build_graph():
     """Build START -> call_model -> END for the configured chat model."""
     # 获取已经校验过的模型配置。
     settings = get_settings()
-    # 使用配置创建 LangChain 聊天模型实例。
-    model = ChatOpenAI(model=settings.model, api_key=settings.api_key)
+    # 使用配置创建指向指定服务端点的 LangChain 聊天模型实例。
+    model = ChatOpenAI(
+        model=settings.model,
+        api_key=settings.api_key,
+        base_url=settings.base_url,
+    )
 
     # 定义负责调用模型的图节点。
     def call_model(state: GraphState) -> dict[str, str]:

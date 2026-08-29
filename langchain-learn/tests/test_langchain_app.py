@@ -29,6 +29,8 @@ get_settings = APP.get_settings
 
 # 验证未设置 API 密钥时会抛出配置异常。
 def test_get_settings_requires_api_key(monkeypatch):
+    # 禁止测试加载本地真实 .env 文件。
+    monkeypatch.setattr(APP, "load_dotenv", lambda _path: None)
     # 清除可能继承的 API 密钥环境变量。
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     # 断言配置读取会报告缺少密钥。
@@ -39,6 +41,8 @@ def test_get_settings_requires_api_key(monkeypatch):
 
 # 验证未指定模型时会使用默认模型。
 def test_get_settings_uses_default_model(monkeypatch):
+    # 禁止测试加载本地真实 .env 文件。
+    monkeypatch.setattr(APP, "load_dotenv", lambda _path: None)
     # 提供测试专用的 API 密钥。
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
     # 清除模型名称以测试默认值。
@@ -47,3 +51,17 @@ def test_get_settings_uses_default_model(monkeypatch):
     settings = get_settings()
     # 验证默认模型名称正确。
     assert settings.model == "gpt-4.1-mini"
+
+
+# 验证设置对象会读取自定义服务端点。
+def test_get_settings_reads_base_url(monkeypatch):
+    # 禁止测试加载本地真实 .env 文件。
+    monkeypatch.setattr(APP, "load_dotenv", lambda _path: None)
+    # 提供测试专用的 API 密钥。
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    # 提供测试专用的 OpenAI 兼容服务端点。
+    monkeypatch.setenv("OPENAI_BASE_URL", "https://example.invalid/v1")
+    # 读取当前测试环境中的设置。
+    settings = get_settings()
+    # 验证服务端点被保存在设置对象中。
+    assert settings.base_url == "https://example.invalid/v1"
