@@ -1,3 +1,13 @@
+# 导入模块缓存和搜索路径工具。
+import sys
+# 导入定位项目目录的路径工具。
+from pathlib import Path
+
+# 定位包含提示词工程包的项目目录。
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+# 将项目目录放入测试进程的优先导入路径。
+sys.path.insert(0, str(PROJECT_ROOT))
+
 # 导入提示词调用函数以验证 LCEL 链行为。
 from prompt_engineering.app import invoke_prompt
 # 导入各类提示词构造函数以验证模板格式化行为。
@@ -98,3 +108,12 @@ def test_invoke_prompt_passes_values_to_chain():
     assert result == "模拟回复"
     # 确认提示词使用传入模型创建了管道链。
     assert prompt.model is model
+
+
+# 验证提示词工程包提供可执行的示例入口。
+def test_prompt_engineering_package_exports_runner():
+    # 导入统一运行示例的函数。
+    from prompt_engineering.main import run_examples
+
+    # 确认入口对象可以被调用。
+    assert callable(run_examples)
