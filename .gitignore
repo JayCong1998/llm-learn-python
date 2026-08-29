@@ -1,0 +1,13 @@
+# Virtual environments and Python build artifacts
+llm/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Secrets
+.env
+**/.env
+
+# IDE files
+.idea/
