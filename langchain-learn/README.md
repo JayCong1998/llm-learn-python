@@ -15,6 +15,16 @@ Copy-Item .env.example .env
 
 `.env` 含有密钥，已被 Git 忽略，不能提交。
 
+## 流式输出与回调事件
+
+在已安装依赖并配置 `.env` 后，从本目录运行：
+
+```powershell
+..\llm\Scripts\python.exe -m streaming.main
+```
+
+模型正文会实时写入标准输出；`[回调]` 开头的模型开始、token、结束或错误事件会实时写入标准错误流。终端通常会同时显示两类信息。
+
 ## 提示词工程示例
 
 完成上述配置后，在本目录运行：
