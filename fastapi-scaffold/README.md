@@ -2,6 +2,10 @@
 
 面向 Java 开发者的 FastAPI 单体分层 API 脚手架，提供 JWT 登录注册、管理员角色控制、汽车品牌和车型管理。
 
+## 分层结构
+
+`app/api` 仅负责 HTTP 路由、依赖声明和错误响应映射；`app/services` 承担业务规则与事务边界；`app/repositories` 负责 SQLAlchemy 数据访问。`models`、`schemas` 与 `core` 分别保留 ORM、接口模型和基础设施职责。
+
 ## 快速启动
 
 需要 Python 3.11+。以下命令均应在项目根目录 `fastapi-scaffold` 中的 PowerShell 执行。

@@ -1,5 +1,7 @@
 # 导入日期时间类型。
 from datetime import timedelta
+# 导入路径操作类型。
+from pathlib import Path
 
 # 导入测试断言工具。
 import pytest
@@ -29,6 +31,20 @@ from app.models.brand import Brand
 from app.models.car_model import CarModel
 # 导入用户模型以注册映射表。
 from app.models.user import User
+
+
+# 验证 API 层不直接访问 ORM 或 SQLAlchemy。
+def test_api_modules_do_not_import_orm_or_sqlalchemy():
+    # 定位当前脚手架的 API 目录。
+    api_directory = Path(__file__).resolve().parents[1] / "app" / "api"
+    # 逐一读取业务 API 模块。
+    for api_file_name in ("auth.py", "brands.py", "car_models.py"):
+        # 读取当前 API 模块源码。
+        source = (api_directory / api_file_name).read_text(encoding="utf-8")
+        # 断言 API 不直接导入 SQLAlchemy。
+        assert "from sqlalchemy" not in source
+        # 断言 API 不直接导入 ORM 模型。
+        assert "from app.models" not in source
 
 
 # 验证模型会创建车辆管理所需的数据表。
