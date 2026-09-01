@@ -1,6 +1,9 @@
 # 导入系统环境变量读取工具。
 import os
 
+# 导入环境文件加载工具。
+from dotenv import load_dotenv
+
 # 导入数据库会话工厂。
 from app.core.database import SessionLocal
 # 导入密码哈希函数。
@@ -11,6 +14,8 @@ from app.models.user import User
 
 # 从环境变量创建管理员账户并返回是否新建。
 def create_admin_from_environment() -> bool:
+    # 加载当前工作目录中的环境文件配置。
+    load_dotenv()
     # 读取管理员用户名配置。
     username = os.getenv("ADMIN_USERNAME")
     # 读取管理员邮箱配置。

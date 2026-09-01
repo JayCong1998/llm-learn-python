@@ -115,11 +115,11 @@ def test_admin_can_create_update_and_delete_car_model(test_client):
     # 断言车型删除成功。
     assert delete_response.status_code == 204
     # 断言被删除车型不再存在。
-    assert test_client.get(f"/car-models/{car_model_id}").status_code == 404
+    assert test_client.get(f"/car-models/{car_model_id}", headers=headers).status_code == 404
 
 
-# 验证公开列表支持品牌过滤和分页。
-def test_public_can_filter_and_paginate_car_models(test_client):
+# 验证车型列表拒绝匿名访问并支持登录后的过滤和分页。
+def test_login_is_required_to_filter_and_paginate_car_models(test_client):
     # 获取管理员认证请求头。
     headers = create_admin_headers(test_client)
     # 创建第一品牌。
@@ -132,10 +132,14 @@ def test_public_can_filter_and_paginate_car_models(test_client):
     test_client.post("/car-models", headers=headers, json={"name": "Model Y", "year": 2025, "price": "263500.00", "brand_id": tesla_id})
     # 创建比亚迪车型。
     test_client.post("/car-models", headers=headers, json={"name": "海豹", "year": 2025, "price": "179800.00", "brand_id": byd_id})
-    # 按品牌过滤并分页查询车型。
-    response = test_client.get(f"/car-models?brand_id={tesla_id}&limit=1&offset=1")
+    # 匿名按品牌过滤并分页查询车型。
+    anonymous_response = test_client.get(f"/car-models?brand_id={tesla_id}&limit=1&offset=1")
+    # 已登录管理员按品牌过滤并分页查询车型。
+    response = test_client.get(f"/car-models?brand_id={tesla_id}&limit=1&offset=1", headers=headers)
 
-    # 断言公开查询成功。
+    # 断言匿名查询被拒绝。
+    assert anonymous_response.status_code == 401
+    # 断言已登录查询成功。
     assert response.status_code == 200
     # 断言分页仅返回一条数据。
     assert len(response.json()) == 1

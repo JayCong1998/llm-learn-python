@@ -83,8 +83,8 @@ def create_admin_headers(test_client):
     return {"Authorization": f"Bearer {token}"}
 
 
-# 验证品牌列表与详情接口可匿名读取。
-def test_public_can_list_and_get_brand_details(test_client):
+# 验证品牌读取接口拒绝匿名访问并允许已登录用户读取。
+def test_login_is_required_to_list_and_get_brand_details(test_client):
     # 创建测试数据库会话。
     database_session = TestingSessionLocal()
     # 创建供公开查询的品牌记录。
@@ -100,15 +100,29 @@ def test_public_can_list_and_get_brand_details(test_client):
     # 关闭数据库会话。
     database_session.close()
     # 匿名请求品牌列表。
-    list_response = test_client.get("/brands")
+    anonymous_list_response = test_client.get("/brands")
     # 匿名请求品牌详情。
-    detail_response = test_client.get(f"/brands/{brand_id}")
+    anonymous_detail_response = test_client.get(f"/brands/{brand_id}")
+    # 注册普通用户。
+    test_client.post("/auth/register", json={"username": "reader", "email": "reader@example.com", "password": "secret-password"})
+    # 使用普通用户账号登录。
+    login_response = test_client.post("/auth/login", json={"username": "reader", "password": "secret-password"})
+    # 组装普通用户认证请求头。
+    headers = {"Authorization": f"Bearer {login_response.json()['access_token']}"}
+    # 已登录用户请求品牌列表。
+    list_response = test_client.get("/brands", headers=headers)
+    # 已登录用户请求品牌详情。
+    detail_response = test_client.get(f"/brands/{brand_id}", headers=headers)
 
-    # 断言品牌列表请求成功。
+    # 断言匿名品牌列表请求被拒绝。
+    assert anonymous_list_response.status_code == 401
+    # 断言匿名品牌详情请求被拒绝。
+    assert anonymous_detail_response.status_code == 401
+    # 断言已登录用户品牌列表请求成功。
     assert list_response.status_code == 200
     # 断言品牌列表返回已创建品牌。
     assert list_response.json()[0]["name"] == "Tesla"
-    # 断言品牌详情请求成功。
+    # 断言已登录用户品牌详情请求成功。
     assert detail_response.status_code == 200
     # 断言品牌详情返回正确国家。
     assert detail_response.json()["country"] == "美国"
@@ -136,7 +150,7 @@ def test_admin_can_create_update_and_delete_brand(test_client):
     # 断言品牌删除成功。
     assert delete_response.status_code == 204
     # 断言被删除品牌不再存在。
-    assert test_client.get(f"/brands/{brand_id}").status_code == 404
+    assert test_client.get(f"/brands/{brand_id}", headers=headers).status_code == 404
 
 
 # 验证普通用户不能修改品牌。
@@ -165,7 +179,7 @@ def test_brand_reports_conflict_and_not_found(test_client):
     # 使用相同名称重复创建品牌。
     conflict_response = test_client.post("/brands", headers=headers, json=payload)
     # 请求不存在的品牌详情。
-    missing_response = test_client.get("/brands/999")
+    missing_response = test_client.get("/brands/999", headers=headers)
 
     # 断言重复品牌返回冲突状态。
     assert conflict_response.status_code == 409

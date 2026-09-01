@@ -57,3 +57,22 @@ def test_create_admin_is_idempotent_and_reads_environment(monkeypatch, test_data
     assert user.role == "admin"
     # 断言用户邮箱来自环境变量。
     assert user.email == "root@example.com"
+
+
+# 验证脚本可从当前目录的环境文件读取管理员配置。
+def test_create_admin_reads_dotenv_file(monkeypatch, test_database_session, tmp_path):
+    # 切换到存放临时环境文件的测试目录。
+    monkeypatch.chdir(tmp_path)
+    # 移除可能污染测试的管理员进程环境变量。
+    monkeypatch.delenv("ADMIN_USERNAME", raising=False)
+    # 移除可能污染测试的管理员邮箱环境变量。
+    monkeypatch.delenv("ADMIN_EMAIL", raising=False)
+    # 移除可能污染测试的管理员密码环境变量。
+    monkeypatch.delenv("ADMIN_PASSWORD", raising=False)
+    # 写入管理员初始化所需的环境文件。
+    (tmp_path / ".env").write_text("ADMIN_USERNAME=admin\nADMIN_EMAIL=admin@qq.com\nADMIN_PASSWORD=admin\n", encoding="utf-8")
+    # 让脚本使用测试数据库会话。
+    monkeypatch.setattr(create_admin, "SessionLocal", lambda: test_database_session)
+
+    # 断言脚本从环境文件创建管理员。
+    assert create_admin.create_admin_from_environment() is True

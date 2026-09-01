@@ -1,6 +1,3 @@
-# 导入管理员依赖注解工具。
-from typing import Annotated
-
 # 导入 FastAPI 路由类。
 from fastapi import APIRouter
 # 导入 FastAPI 依赖注入工具。
@@ -14,10 +11,10 @@ from sqlalchemy import select
 
 # 导入管理员权限依赖。
 from app.core.dependencies import require_admin
+# 导入当前用户认证依赖。
+from app.core.dependencies import get_current_user
 # 导入数据库会话注解。
 from app.core.dependencies import DatabaseSession
-# 导入用户模型。
-from app.models.user import User
 # 导入品牌模型。
 from app.models.brand import Brand
 # 导入车型模型。
@@ -29,8 +26,8 @@ from app.schemas.brand import BrandRead
 # 导入更新品牌请求模型。
 from app.schemas.brand import BrandUpdate
 
-# 创建品牌管理路由。
-router = APIRouter(prefix="/brands", tags=["brands"])
+# 创建要求登录的品牌管理路由。
+router = APIRouter(prefix="/brands", tags=["brands"], dependencies=[Depends(get_current_user)])
 
 
 # 根据主键查询品牌并在缺失时返回未找到错误。
@@ -45,7 +42,7 @@ def get_brand_or_404(brand_id: int, database_session: DatabaseSession) -> Brand:
     return brand
 
 
-# 公开返回全部品牌列表。
+# 登录后返回全部品牌列表。
 @router.get("", response_model=list[BrandRead])
 # 定义品牌列表处理函数。
 def list_brands(database_session: DatabaseSession) -> list[Brand]:
@@ -55,7 +52,7 @@ def list_brands(database_session: DatabaseSession) -> list[Brand]:
     return list(brands)
 
 
-# 公开返回指定品牌详情。
+# 登录后返回指定品牌详情。
 @router.get("/{brand_id}", response_model=BrandRead)
 # 定义品牌详情处理函数。
 def get_brand(brand_id: int, database_session: DatabaseSession) -> Brand:
@@ -64,11 +61,9 @@ def get_brand(brand_id: int, database_session: DatabaseSession) -> Brand:
 
 
 # 仅允许管理员创建品牌。
-@router.post("", response_model=BrandRead, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=BrandRead, status_code=status.HTTP_201_CREATED, dependencies=[Depends(require_admin)])
 # 定义创建品牌处理函数。
-def create_brand(payload: BrandCreate, database_session: DatabaseSession, current_user: Annotated[User, Depends(require_admin)]) -> Brand:
-    # 显式引用管理员依赖结果以完成权限校验。
-    _ = current_user
+def create_brand(payload: BrandCreate, database_session: DatabaseSession) -> Brand:
     # 查询是否存在同名品牌。
     existing_brand = database_session.scalar(select(Brand).where(Brand.name == payload.name))
     # 拒绝重复品牌名称。
@@ -88,11 +83,9 @@ def create_brand(payload: BrandCreate, database_session: DatabaseSession, curren
 
 
 # 仅允许管理员更新品牌。
-@router.put("/{brand_id}", response_model=BrandRead)
+@router.put("/{brand_id}", response_model=BrandRead, dependencies=[Depends(require_admin)])
 # 定义更新品牌处理函数。
-def update_brand(brand_id: int, payload: BrandUpdate, database_session: DatabaseSession, current_user: Annotated[User, Depends(require_admin)]) -> Brand:
-    # 显式引用管理员依赖结果以完成权限校验。
-    _ = current_user
+def update_brand(brand_id: int, payload: BrandUpdate, database_session: DatabaseSession) -> Brand:
     # 查询要更新的品牌。
     brand = get_brand_or_404(brand_id, database_session)
     # 查询同名的其他品牌。
@@ -114,11 +107,9 @@ def update_brand(brand_id: int, payload: BrandUpdate, database_session: Database
 
 
 # 仅允许管理员删除品牌。
-@router.delete("/{brand_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{brand_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_admin)])
 # 定义删除品牌处理函数。
-def delete_brand(brand_id: int, database_session: DatabaseSession, current_user: Annotated[User, Depends(require_admin)]) -> None:
-    # 显式引用管理员依赖结果以完成权限校验。
-    _ = current_user
+def delete_brand(brand_id: int, database_session: DatabaseSession) -> None:
     # 查询要删除的品牌。
     brand = get_brand_or_404(brand_id, database_session)
     # 查询品牌是否仍有关联车型。

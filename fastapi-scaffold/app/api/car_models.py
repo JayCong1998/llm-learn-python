@@ -16,6 +16,8 @@ from sqlalchemy import select
 
 # 导入管理员权限依赖。
 from app.core.dependencies import require_admin
+# 导入当前用户认证依赖。
+from app.core.dependencies import get_current_user
 # 导入数据库会话注解。
 from app.core.dependencies import DatabaseSession
 # 导入品牌模型。
@@ -29,8 +31,8 @@ from app.schemas.car_model import CarModelRead
 # 导入更新车型请求模型。
 from app.schemas.car_model import CarModelUpdate
 
-# 创建车型管理路由。
-router = APIRouter(prefix="/car-models", tags=["car-models"])
+# 创建要求登录的车型管理路由。
+router = APIRouter(prefix="/car-models", tags=["car-models"], dependencies=[Depends(get_current_user)])
 
 
 # 根据主键查询车型并在缺失时返回未找到错误。
@@ -55,7 +57,7 @@ def require_brand(brand_id: int, database_session: DatabaseSession) -> None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="品牌不存在")
 
 
-# 公开返回支持过滤和分页的车型列表。
+# 登录后返回支持过滤和分页的车型列表。
 @router.get("", response_model=list[CarModelRead])
 # 定义车型列表处理函数。
 def list_car_models(database_session: DatabaseSession, brand_id: Annotated[int | None, Query(gt=0)] = None, limit: Annotated[int, Query(ge=1, le=100)] = 20, offset: Annotated[int, Query(ge=0)] = 0) -> list[CarModel]:
@@ -71,7 +73,7 @@ def list_car_models(database_session: DatabaseSession, brand_id: Annotated[int |
     return list(database_session.scalars(statement).all())
 
 
-# 公开返回指定车型详情。
+# 登录后返回指定车型详情。
 @router.get("/{car_model_id}", response_model=CarModelRead)
 # 定义车型详情处理函数。
 def get_car_model(car_model_id: int, database_session: DatabaseSession) -> CarModel:
@@ -80,11 +82,9 @@ def get_car_model(car_model_id: int, database_session: DatabaseSession) -> CarMo
 
 
 # 仅允许管理员创建车型。
-@router.post("", response_model=CarModelRead, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=CarModelRead, status_code=status.HTTP_201_CREATED, dependencies=[Depends(require_admin)])
 # 定义创建车型处理函数。
-def create_car_model(payload: CarModelCreate, database_session: DatabaseSession, current_user: Annotated[object, Depends(require_admin)]) -> CarModel:
-    # 显式引用管理员依赖结果以完成权限校验。
-    _ = current_user
+def create_car_model(payload: CarModelCreate, database_session: DatabaseSession) -> CarModel:
     # 校验请求关联的品牌存在。
     require_brand(payload.brand_id, database_session)
     # 使用请求数据创建车型实体。
@@ -100,11 +100,9 @@ def create_car_model(payload: CarModelCreate, database_session: DatabaseSession,
 
 
 # 仅允许管理员更新车型。
-@router.put("/{car_model_id}", response_model=CarModelRead)
+@router.put("/{car_model_id}", response_model=CarModelRead, dependencies=[Depends(require_admin)])
 # 定义更新车型处理函数。
-def update_car_model(car_model_id: int, payload: CarModelUpdate, database_session: DatabaseSession, current_user: Annotated[object, Depends(require_admin)]) -> CarModel:
-    # 显式引用管理员依赖结果以完成权限校验。
-    _ = current_user
+def update_car_model(car_model_id: int, payload: CarModelUpdate, database_session: DatabaseSession) -> CarModel:
     # 查询待更新车型。
     car_model = get_car_model_or_404(car_model_id, database_session)
     # 校验请求关联的品牌存在。
@@ -122,11 +120,9 @@ def update_car_model(car_model_id: int, payload: CarModelUpdate, database_sessio
 
 
 # 仅允许管理员删除车型。
-@router.delete("/{car_model_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{car_model_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_admin)])
 # 定义删除车型处理函数。
-def delete_car_model(car_model_id: int, database_session: DatabaseSession, current_user: Annotated[object, Depends(require_admin)]) -> None:
-    # 显式引用管理员依赖结果以完成权限校验。
-    _ = current_user
+def delete_car_model(car_model_id: int, database_session: DatabaseSession) -> None:
     # 查询待删除车型。
     car_model = get_car_model_or_404(car_model_id, database_session)
     # 删除车型实体。

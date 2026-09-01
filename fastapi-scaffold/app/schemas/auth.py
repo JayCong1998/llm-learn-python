@@ -13,7 +13,7 @@ class UserRegister(BaseModel):
     # 限制邮箱字符串长度。
     email: str = Field(min_length=3, max_length=255)
     # 限制密码最小长度。
-    password: str = Field(min_length=8, max_length=128)
+    password: str = Field(min_length=5, max_length=128)
 
 
 # 定义用户登录请求数据模型。
@@ -21,7 +21,7 @@ class UserLogin(BaseModel):
     # 限制登录用户名长度。
     username: str = Field(min_length=3, max_length=50)
     # 限制登录密码长度。
-    password: str = Field(min_length=8, max_length=128)
+    password: str = Field(min_length=5, max_length=128)
 
 
 # 定义对外暴露的用户数据模型。

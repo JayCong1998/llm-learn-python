@@ -71,6 +71,19 @@ def test_register_creates_default_user(test_client):
     assert "password_hash" not in response.json()
 
 
+# 验证注册和登录均接受与默认管理员一致的五位密码。
+def test_auth_accepts_five_character_password(test_client):
+    # 使用五位密码注册用户。
+    register_response = test_client.post("/auth/register", json={"username": "admin", "email": "admin@qq.com", "password": "admin"})
+    # 使用相同的五位密码登录。
+    login_response = test_client.post("/auth/login", json={"username": "admin", "password": "admin"})
+
+    # 断言注册请求成功。
+    assert register_response.status_code == 201
+    # 断言登录请求成功。
+    assert login_response.status_code == 200
+
+
 # 验证重复用户名或邮箱会被拒绝。
 def test_register_rejects_duplicate_username_or_email(test_client):
     # 定义初始注册信息。
