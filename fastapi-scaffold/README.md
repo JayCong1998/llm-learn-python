@@ -1,6 +1,6 @@
 # fastapi-scaffold
 
-面向 Java 开发者的 FastAPI 单体分层 API 脚手架，提供 JWT 登录注册、管理员角色控制、汽车品牌和车型管理。
+面向 Java 开发者的 FastAPI 单体分层 API 脚手架，提供 JWT 登录注册、用户 LLM 对话与调用审计。
 
 ## 分层结构
 
@@ -45,11 +45,8 @@ python -m uvicorn app.main:app --reload
 # 运行全部测试
 python -m pytest -q
 
-# 只运行某个测试文件
-python -m pytest tests/test_brands.py -q
-
-# 只运行名称匹配 brand 的测试
-python -m pytest -k brand -q
+# 只运行聊天接口测试
+python -m pytest tests/test_chat.py -q
 
 # 应用所有数据库迁移
 alembic upgrade head
@@ -70,7 +67,7 @@ python -m scripts.create_admin
 alembic upgrade head
 ```
 
-迁移会先创建既有的 `users`、`brands` 和 `car_models` 表，再升级为 `user`、`chat_conversation`、`chat_message` 与 `llm_call_log` 等业务表。开发新的模型变更后，可生成迁移并应用：
+迁移会将既有 `users` 表升级为 `user`，并创建 `chat_conversation`、`chat_message` 与 `llm_call_log` 表；最新迁移会移除已废弃的汽车品牌和车型表。开发新的模型变更后，可生成迁移并应用：
 
 ```powershell
 alembic revision --autogenerate -m "描述变更"
@@ -119,14 +116,11 @@ Content-Type: application/json
 
 登录响应中的 `access_token` 需要以 `Authorization: Bearer <access_token>` 请求头传给管理员写入接口。
 
-## API 概览
+## 聊天 API
 
-| 资源 | 公开读取 | 管理员写入 |
-| --- | --- | --- |
-| 品牌 | `GET /brands`、`GET /brands/{brand_id}` | `POST /brands`、`PUT /brands/{brand_id}`、`DELETE /brands/{brand_id}` |
-| 车型 | `GET /car-models`、`GET /car-models/{car_model_id}` | `POST /car-models`、`PUT /car-models/{car_model_id}`、`DELETE /car-models/{car_model_id}` |
+认证后可调用 `POST /chat/conversations` 创建会话，`POST /chat/conversations/{id}/messages` 发送消息，`GET /chat/conversations` 与 `GET /chat/conversations/{id}` 查询历史，`DELETE /chat/conversations/{id}` 逻辑删除会话。
 
-普通用户和未登录访客只能查询品牌、车型列表或详情；只有角色为 `admin` 的账户能创建、修改或删除数据。
+在 `.env` 配置 `LLM_BASE_URL`、`LLM_API_KEY` 与 `LLM_MODEL` 后，服务会调用 OpenAI 兼容的 `/chat/completions` 接口。
 
 ## 运行测试
 

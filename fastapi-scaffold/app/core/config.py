@@ -12,6 +12,14 @@ class Settings(BaseSettings):
     jwt_secret_key: str = "change-this-development-secret-key"
     # 设置 JWT 访问令牌有效分钟数默认值。
     jwt_expire_minutes: int = 30
+    # 设置 OpenAI 兼容 API 基础地址。
+    llm_base_url: str = "https://api.openai.com/v1"
+    # 设置 OpenAI 兼容 API 密钥。
+    llm_api_key: str = ""
+    # 设置默认调用模型名称。
+    llm_model: str = "gpt-4o-mini"
+    # 设置模型调用超时秒数。
+    llm_timeout_seconds: float = 60.0
     # 配置从项目环境文件和环境变量加载字段值。
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

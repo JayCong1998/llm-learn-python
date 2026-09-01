@@ -12,10 +12,6 @@ from sqlalchemy import pool
 from app.core.config import settings
 # 导入 ORM 元数据基类。
 from app.core.database import Base
-# 导入品牌模型以注册品牌表。
-from app.models.brand import Brand
-# 导入车型模型以注册车型表。
-from app.models.car_model import CarModel
 # 导入用户模型以注册用户表。
 from app.models.user import User
 # 导入会话模型以注册会话表。
