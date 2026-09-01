@@ -57,7 +57,7 @@ def test_models_create_expected_tables(tmp_path):
     table_names = set(inspect(engine).get_table_names())
 
     # 断言用户表已创建。
-    assert "users" in table_names
+    assert "user" in table_names
     # 断言品牌表已创建。
     assert "brands" in table_names
     # 断言车型表已创建。

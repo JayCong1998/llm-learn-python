@@ -18,6 +18,12 @@ from app.models.brand import Brand
 from app.models.car_model import CarModel
 # 导入用户模型以注册用户表。
 from app.models.user import User
+# 导入会话模型以注册会话表。
+from app.models.chat_conversation import ChatConversation
+# 导入消息模型以注册消息表。
+from app.models.chat_message import ChatMessage
+# 导入大模型调用日志模型以注册日志表。
+from app.models.llm_call_log import LlmCallLog
 
 # 读取 Alembic 当前配置对象。
 config = context.config

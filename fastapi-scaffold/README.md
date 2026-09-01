@@ -70,7 +70,7 @@ python -m scripts.create_admin
 alembic upgrade head
 ```
 
-迁移会创建 `users`、`brands` 和 `car_models` 三张表。开发新的模型变更后，可生成迁移并应用：
+迁移会先创建既有的 `users`、`brands` 和 `car_models` 表，再升级为 `user`、`chat_conversation`、`chat_message` 与 `llm_call_log` 等业务表。开发新的模型变更后，可生成迁移并应用：
 
 ```powershell
 alembic revision --autogenerate -m "描述变更"
@@ -84,6 +84,10 @@ alembic upgrade head
 ```powershell
 python -m scripts.create_admin
 ```
+
+### LLM 对话持久化
+
+`user`、`chat_conversation`、`chat_message` 与 `llm_call_log` 都包含 `created_at`、`updated_at`、`lock_version` 与 `deleted` 字段。`llm_call_log` 仅关联模型生成的一条 `assistant` 消息；工具调用和工具结果只保留在单次请求的内存上下文中，不写入数据库。
 
 脚本可重复执行；若相同用户名或邮箱已存在，会跳过创建，不会覆盖已有账户。
 

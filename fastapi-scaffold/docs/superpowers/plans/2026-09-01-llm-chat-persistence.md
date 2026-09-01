@@ -4,7 +4,7 @@
 
 **Goal:** Add persistent LLM chat domain tables with common audit, optimistic-lock, and soft-delete fields.
 
-**Architecture:** Extend the existing `users` ORM model without renaming its existing table, then add ORM models for conversations, messages, and per-assistant-message LLM invocation logs. A second Alembic migration upgrades the existing initial schema; no API, service, repository, or tool-call persistence is added.
+**Architecture:** Rename the existing `users` table to `user` while preserving existing rows, then add ORM models for conversations, messages, and per-assistant-message LLM invocation logs. A second Alembic migration upgrades the existing initial schema; no API, service, repository, or tool-call persistence is added.
 
 **Tech Stack:** Python 3.11, SQLAlchemy 2 ORM, Alembic, SQLite, pytest.
 
@@ -24,8 +24,8 @@ def test_llm_chat_models_create_required_tables_and_common_columns(tmp_path):
     Base.metadata.create_all(bind=engine)
     inspector = inspect(engine)
 
-    assert {"users", "chat_conversations", "chat_messages", "llm_call_logs"} <= set(inspector.get_table_names())
-    for table_name in ("users", "chat_conversations", "chat_messages", "llm_call_logs"):
+    assert {"user", "chat_conversation", "chat_message", "llm_call_log"} <= set(inspector.get_table_names())
+    for table_name in ("user", "chat_conversation", "chat_message", "llm_call_log"):
         assert {"created_at", "updated_at", "lock_version", "deleted"} <= {column["name"] for column in inspector.get_columns(table_name)}
 
 
@@ -44,19 +44,19 @@ Expected: FAIL with an import error for the new chat model modules.
 
 ```python
 class ChatConversation(Base):
-    __tablename__ = "chat_conversations"
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True)
+    __tablename__ = "chat_conversation"
+    user_id: Mapped[int] = mapped_column(ForeignKey("user.id", ondelete="RESTRICT"), nullable=False, index=True)
 
 
 class ChatMessage(Base):
-    __tablename__ = "chat_messages"
+    __tablename__ = "chat_message"
     role: Mapped[str] = mapped_column(String(20), nullable=False)
     __table_args__ = (CheckConstraint("role IN ('system', 'user', 'assistant')", name="ck_chat_messages_role"),)
 
 
 class LlmCallLog(Base):
-    __tablename__ = "llm_call_logs"
-    message_id: Mapped[int] = mapped_column(ForeignKey("chat_messages.id", ondelete="RESTRICT"), nullable=False, unique=True)
+    __tablename__ = "llm_call_log"
+    message_id: Mapped[int] = mapped_column(ForeignKey("chat_message.id", ondelete="RESTRICT"), nullable=False, unique=True)
 ```
 
 Each new or changed Python statement must have the required preceding Chinese line comment. Every table includes `created_at`, `updated_at`, `lock_version`, and `deleted`; `llm_call_logs.message_id` is unique and points only to an assistant message by service-layer convention.
@@ -87,10 +87,10 @@ git commit -m "feat: add LLM chat persistence models"
 def test_llm_chat_migration_creates_tables_and_user_common_columns():
     migration_source = Path("alembic/versions/20260901_0002_add_llm_chat_tables.py").read_text(encoding="utf-8")
 
-    assert 'op.create_table("chat_conversations"' in migration_source
-    assert 'op.create_table("chat_messages"' in migration_source
-    assert 'op.create_table("llm_call_logs"' in migration_source
-    assert 'op.add_column("users"' in migration_source
+    assert 'op.rename_table("users", "user")' in migration_source
+    assert '"chat_conversation"' in migration_source
+    assert '"chat_message"' in migration_source
+    assert '"llm_call_log"' in migration_source
 ```
 
 - [ ] **Step 2: Run the migration test and verify it fails because the revision file is absent**
@@ -103,12 +103,10 @@ Expected: FAIL with `FileNotFoundError`.
 
 ```python
 def upgrade() -> None:
-    op.add_column("users", sa.Column("updated_at", sa.DateTime(timezone=True), nullable=True))
-    op.add_column("users", sa.Column("lock_version", sa.Integer(), nullable=False, server_default="0"))
-    op.add_column("users", sa.Column("deleted", sa.Boolean(), nullable=False, server_default=sa.false()))
-    op.create_table("chat_conversations", ...)
-    op.create_table("chat_messages", ...)
-    op.create_table("llm_call_logs", ...)
+    op.rename_table("users", "user")
+    op.create_table("chat_conversation", ...)
+    op.create_table("chat_message", ...)
+    op.create_table("llm_call_log", ...)
 ```
 
 Use a temporary nullable `users.updated_at` migration column so existing rows remain migratable, populate it with the current timestamp, then change it to non-null. Include matching indexes and a downgrade that removes child tables before parent columns.
@@ -137,7 +135,7 @@ git commit -m "feat: migrate LLM chat persistence schema"
 ```markdown
 ### LLM 对话持久化
 
-`users`、`chat_conversations`、`chat_messages` 与 `llm_call_logs` 均包含创建、更新时间、乐观锁版本与逻辑删除字段。工具调用只保留在单次请求的内存上下文中，不写入数据库。
+`user`、`chat_conversation`、`chat_message` 与 `llm_call_log` 均包含创建、更新时间、乐观锁版本与逻辑删除字段。工具调用只保留在单次请求的内存上下文中，不写入数据库。
 ```
 
 - [ ] **Step 2: Run the full backend suite**
