@@ -4,6 +4,8 @@ llm/
 __pycache__/
 *.py[cod]
 .pytest_cache/
+**/.pytest-tmp/
+langchain-learn/data/*.sqlite*
 
 # Secrets
 .env
