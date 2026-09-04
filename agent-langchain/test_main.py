@@ -8,6 +8,8 @@ import httpx
 import pytest
 # 导入 LangChain AI 消息类型。
 from langchain_core.messages import AIMessage
+# 导入 LangChain 可运行函数包装器。
+from langchain_core.runnables import RunnableLambda
 
 # 导入唯一的 FastAPI 应用入口。
 import main as app_main
@@ -112,18 +114,36 @@ def test_rag_search_documents_uses_langchain_retriever(monkeypatch):
     assert fake_retriever.questions == ["测试问题"]
 
 
-# 验证 RAG 搜索接口返回替身检索结果。
-def test_rag_search_api_returns_documents(monkeypatch):
-    # 将文档检索替换为固定响应。
-    monkeypatch.setattr(rag_main, "search_documents", lambda question, top_k: {"question": question, "results": [{"text": "替身检索结果"}]})
+# 验证 RAG 搜索接口返回模型答案与检索来源。
+def test_rag_search_api_returns_answer_and_sources(monkeypatch):
+    # 将完整 RAG 问答替换为固定响应。
+    monkeypatch.setattr(rag_main, "answer_question", lambda question, top_k: {"answer": "替身总结", "sources": [{"text": "替身检索结果"}]})
     # 创建应用测试客户端。
     client = TestClient(app_main.app)
     # 请求 RAG 搜索接口。
     response = client.get("/rag/search", params={"question": "测试"})
     # 断言响应成功。
     assert response.status_code == 200
-    # 断言接口返回替身检索结果。
-    assert response.json() == {"question": "测试", "results": [{"text": "替身检索结果"}]}
+    # 断言接口返回替身总结与来源。
+    assert response.json() == {"question": "测试", "answer": "替身总结", "sources": [{"text": "替身检索结果"}]}
+
+
+# 验证 RAG 将检索文档交给 LangChain 大模型生成答案。
+def test_rag_answer_question_uses_retrieved_context(monkeypatch):
+    # 创建返回固定文档的 LangChain Retriever 替身。
+    fake_retriever = FakeRetriever()
+    # 将 Retriever 工厂替换为测试替身。
+    monkeypatch.setattr(rag_main, "get_retriever", lambda top_k: fake_retriever)
+    # 将大模型工厂替换为返回固定消息的 LangChain Runnable。
+    monkeypatch.setattr(rag_main, "get_llm", lambda: RunnableLambda(lambda prompt: AIMessage(content="根据检索内容生成的总结。")))
+    # 调用完整 RAG 问答流程。
+    result = rag_main.answer_question("测试问题", 3)
+    # 断言返回大模型总结内容。
+    assert result["answer"] == "根据检索内容生成的总结。"
+    # 断言返回检索来源。
+    assert result["sources"] == [{"text": "命中文本", "metadata": {"source": "测试文档"}}]
+    # 断言问题先交给 LangChain Retriever。
+    assert fake_retriever.questions == ["测试问题"]
 
 
 # 验证缺少百炼密钥时 embedding 创建明确失败。
@@ -165,15 +185,15 @@ def test_rag_create_embedding_converts_provider_exception(monkeypatch):
         rag_main.create_embedding("测试问题")
 
 
-# 验证检索服务故障时接口返回统一网关错误。
+# 验证 RAG 问答服务故障时接口返回统一网关错误。
 def test_rag_search_api_returns_gateway_error_for_search_failure(monkeypatch):
-    # 定义抛出 KNN 检索错误的替身。
-    def fail_search_documents(question, top_k):
-        # 模拟 Elasticsearch KNN 检索失败。
+    # 定义抛出 RAG 问答错误的替身。
+    def fail_answer_question(question, top_k):
+        # 模拟完整 RAG 问答失败。
         raise RuntimeError("Elasticsearch KNN 检索失败。")
 
-    # 将文档检索替换为失败替身。
-    monkeypatch.setattr(rag_main, "search_documents", fail_search_documents)
+    # 将 RAG 问答替换为失败替身。
+    monkeypatch.setattr(rag_main, "answer_question", fail_answer_question)
     # 创建应用测试客户端。
     client = TestClient(app_main.app)
     # 请求 RAG 搜索接口。

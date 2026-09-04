@@ -15,8 +15,14 @@ from fastapi import APIRouter, HTTPException, Query
 from langchain_core.documents import Document
 # 导入 LangChain Embeddings 抽象基类。
 from langchain_core.embeddings import Embeddings
+# 导入 LangChain 提示词模板。
+from langchain_core.prompts import ChatPromptTemplate
+# 导入 LangChain 文本输出解析器。
+from langchain_core.output_parsers import StrOutputParser
 # 导入 LangChain Elasticsearch 向量库实现。
 from langchain_elasticsearch import ElasticsearchStore
+# 导入 OpenAI 兼容的 LangChain 聊天模型。
+from langchain_openai import ChatOpenAI
 
 # 创建 RAG 检索路由实例。
 router = APIRouter(tags=["rag"])
@@ -133,10 +139,48 @@ def get_retriever(top_k: int):
     return vector_store.as_retriever(search_kwargs={"k": top_k})
 
 
+# 创建项目当前配置的 MiniMax LangChain 聊天模型。
+def get_llm() -> ChatOpenAI:
+    # 读取 MiniMax API 密钥。
+    api_key = get_required_environment("MINIMAX_API_KEY")
+    # 读取 MiniMax 模型名称并提供默认值。
+    model_name = os.getenv("MINIMAX_MODEL", "MiniMax-M2.7")
+    # 读取 MiniMax 的 OpenAI 兼容 API 端点。
+    base_url = os.getenv("MINIMAX_BASE_URL", "https://api.minimaxi.com/v1")
+    # 返回温度为零的确定性聊天模型。
+    return ChatOpenAI(model=model_name, api_key=api_key, base_url=base_url, temperature=0)
+
+
 # 将 LangChain 文档映射为 API 响应。
 def map_documents(documents: list[Document]) -> list[dict[str, object]]:
     # 返回正文与元数据组成的结果列表。
     return [{"text": document.page_content, "metadata": document.metadata} for document in documents]
+
+
+# 将检索文档拼接为供大模型阅读的上下文。
+def format_context(documents: list[Document]) -> str:
+    # 在检索无结果时提供明确上下文提示。
+    if not documents:
+        # 返回空检索结果说明。
+        return "未检索到相关资料。"
+    # 使用分隔符拼接每条文档正文。
+    return "\n\n---\n\n".join(document.page_content for document in documents)
+
+
+# 使用 LangChain 检索上下文和大模型生成最终答案。
+def answer_question(question: str, top_k: int = 5) -> dict[str, object]:
+    # 获取 LangChain Retriever。
+    retriever = get_retriever(top_k)
+    # 检索与用户问题相关的 LangChain 文档。
+    documents = retriever.invoke(question)
+    # 创建要求基于上下文回答的 LangChain 提示词。
+    prompt = ChatPromptTemplate.from_template("""你是知识库问答助手。请只依据下面的检索资料回答问题；资料不足时明确说明无法从资料中确认。\n\n检索资料：\n{context}\n\n用户问题：\n{question}""")
+    # 组合提示词、聊天模型和文本解析器形成 LangChain RAG 链。
+    rag_chain = prompt | get_llm() | StrOutputParser()
+    # 调用 RAG 链生成最终答案。
+    answer = rag_chain.invoke({"context": format_context(documents), "question": question})
+    # 返回模型答案和可追溯的检索来源。
+    return {"answer": answer, "sources": map_documents(documents)}
 
 
 # 通过 LangChain Retriever 检索相近文档。
@@ -155,8 +199,10 @@ def search_documents(question: str, top_k: int = 5) -> dict[str, object]:
 def rag_search(question: str = Query(min_length=1, description="需要检索的文本"), top_k: int = Query(default=5, ge=1, le=20)) -> dict[str, object]:
     # 尝试执行 LangChain 文档检索。
     try:
-        # 执行文档检索并返回结果。
-        return search_documents(question, top_k)
+        # 执行完整 RAG 问答并返回答案与来源。
+        result = answer_question(question, top_k)
+        # 返回原始问题和 RAG 问答结果。
+        return {"question": question, **result}
     # 保留环境变量缺失的明确配置提示。
     except RuntimeError as error:
         # 在配置缺失时维持默认的服务器错误响应。
