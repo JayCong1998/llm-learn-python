@@ -64,11 +64,11 @@ def test_register_creates_default_user(test_client):
     # 断言注册成功。
     assert response.status_code == 201
     # 断言响应返回用户名。
-    assert response.json()["username"] == "alice"
+    assert response.json()["data"]["username"] == "alice"
     # 断言响应返回普通用户角色。
-    assert response.json()["role"] == "user"
+    assert response.json()["data"]["role"] == "user"
     # 断言响应不会暴露密码哈希。
-    assert "password_hash" not in response.json()
+    assert "password_hash" not in response.json()["data"]
 
 
 # 验证注册和登录均接受与默认管理员一致的五位密码。
@@ -113,11 +113,13 @@ def test_login_returns_bearer_token_and_rejects_invalid_password(test_client):
     # 断言正确登录成功。
     assert login_response.status_code == 200
     # 断言响应符合 Bearer Token 格式。
-    assert login_response.json()["token_type"] == "bearer"
+    assert login_response.json()["data"]["token_type"] == "bearer"
     # 断言响应包含访问令牌。
-    assert login_response.json()["access_token"]
+    assert login_response.json()["data"]["access_token"]
     # 断言错误密码返回未认证状态。
     assert invalid_response.status_code == 401
+    # 断言错误密码响应使用统一错误信封。
+    assert invalid_response.json() == {"code": 401, "message": "用户名或密码错误", "data": None}
 
 
 # 验证普通用户无法调用仅管理员允许的写入端点。
@@ -127,9 +129,11 @@ def test_regular_user_is_forbidden_from_admin_write_endpoint(test_client):
     # 获取普通用户访问令牌。
     login_response = test_client.post("/auth/login", json={"username": "alice", "password": "secret-password"})
     # 读取访问令牌。
-    token = login_response.json()["access_token"]
+    token = login_response.json()["data"]["access_token"]
     # 使用普通用户令牌调用管理员写入端点。
     response = test_client.post("/auth/admin-probe", headers={"Authorization": f"Bearer {token}"})
 
     # 断言普通用户被禁止写入。
     assert response.status_code == 403
+    # 断言权限错误响应使用统一错误信封。
+    assert response.json() == {"code": 403, "message": "需要管理员权限", "data": None}

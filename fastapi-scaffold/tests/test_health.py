@@ -25,7 +25,7 @@ def test_health_returns_service_status():
     # 断言接口请求成功。
     assert response.status_code == 200
     # 断言接口返回约定的状态数据。
-    assert response.json() == {"status": "ok", "service": "fastapi-scaffold"}
+    assert response.json() == {"code": 0, "message": "success", "data": {"status": "ok", "service": "fastapi-scaffold"}}
 
 
 # 验证环境变量配置会更新应用标题和服务名称。
@@ -48,7 +48,7 @@ def test_health_uses_configured_app_name(monkeypatch):
         # 断言应用标题使用环境变量配置。
         assert main_module.app.title == "configured-name"
         # 断言服务名称使用环境变量配置。
-        assert response.json()["service"] == "configured-name"
+        assert response.json()["data"]["service"] == "configured-name"
     # 无论测试结果都恢复模块全局状态。
     finally:
         # 立即撤销环境变量补丁。
@@ -71,4 +71,4 @@ def test_health_restores_default_service_status():
     # 断言应用标题恢复默认值。
     assert main_module.app.title == "fastapi-scaffold"
     # 断言服务名称恢复默认值。
-    assert response.json()["service"] == "fastapi-scaffold"
+    assert response.json()["data"]["service"] == "fastapi-scaffold"
