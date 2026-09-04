@@ -7,12 +7,16 @@ from pathlib import Path
 import dashscope
 # 导入 DashScope 文本向量模型。
 from dashscope import TextEmbedding
-# 导入 Elasticsearch 官方客户端。
-from elasticsearch import Elasticsearch, TransportError
 # 导入 .env 文件加载函数。
 from dotenv import load_dotenv
 # 导入 FastAPI 路由与查询参数声明工具。
 from fastapi import APIRouter, HTTPException, Query
+# 导入 LangChain 文档类型。
+from langchain_core.documents import Document
+# 导入 LangChain Embeddings 抽象基类。
+from langchain_core.embeddings import Embeddings
+# 导入 LangChain Elasticsearch 向量库实现。
+from langchain_elasticsearch import ElasticsearchStore
 
 # 创建 RAG 检索路由实例。
 router = APIRouter(tags=["rag"])
@@ -26,7 +30,7 @@ def load_environment(env_file: Path | None = None) -> None:
     load_dotenv(dotenv_path=dotenv_path, override=False)
 
 
-# 在创建客户端前加载环境变量。
+# 在创建 LangChain 组件前加载环境变量。
 load_environment()
 
 
@@ -48,40 +52,16 @@ def get_index_name() -> str:
     return os.getenv("ES_INDEX_NAME", "know-engine-vector")
 
 
-# 创建已配置的 Elasticsearch 官方客户端。
-def get_es_client() -> Elasticsearch:
-    # 读取 Elasticsearch 服务地址。
-    es_url = get_required_environment("ES_URL")
-    # 创建 Elasticsearch 客户端初始化参数。
-    client_options: dict[str, object] = {}
-    # 读取可选的用户名配置。
-    username = os.getenv("ES_USERNAME")
-    # 读取可选的密码配置。
-    password = os.getenv("ES_PASSWORD")
-    # 在用户名和密码都存在时启用基本认证。
-    if username and password:
-        # 写入 Elasticsearch 客户端的基本认证参数。
-        client_options["basic_auth"] = (username, password)
-    # 读取可选的 CA 证书路径。
-    ca_certs = os.getenv("ES_CA_CERTS")
-    # 在配置证书路径时启用 TLS 证书校验。
-    if ca_certs:
-        # 写入 Elasticsearch 客户端的证书路径参数。
-        client_options["ca_certs"] = ca_certs
-    # 返回连接到配置服务地址的客户端。
-    return Elasticsearch(es_url, **client_options)
-
-
-# 使用百炼文本向量模型生成问题向量。
-def create_embedding(question: str) -> list[float]:
+# 调用百炼生成指定角色的 1536 维向量。
+def create_bailian_embedding(text: str, text_type: str) -> list[float]:
     # 读取百炼 API 密钥。
     api_key = get_required_environment("DASHSCOPE_API_KEY")
     # 配置 DashScope SDK 使用当前 API 密钥。
     dashscope.api_key = api_key
-    # 尝试调用指定模型为问题生成向量。
+    # 尝试调用指定模型为文本生成向量。
     try:
-        # 调用指定模型为问题生成向量。
-        response = TextEmbedding.call(model="text-embedding-v4", input=question, dimension=1536, text_type="query")
+        # 调用模型并要求与现有 ES 索引一致的 1536 维度。
+        response = TextEmbedding.call(model="text-embedding-v4", input=text, dimension=1536, text_type=text_type)
         # 读取首个 embedding 向量。
         embedding = response.output["embeddings"][0]["embedding"]
         # 校验模型返回的向量维度符合索引配置。
@@ -100,45 +80,80 @@ def create_embedding(question: str) -> list[float]:
         raise RuntimeError("百炼 embedding 生成失败。") from error
 
 
-# 将 Elasticsearch 命中映射为 API 响应文档。
-def map_hits(hits: list[dict[str, object]]) -> list[dict[str, object]]:
-    # 创建映射后的文档列表。
-    results: list[dict[str, object]] = []
-    # 逐一处理 Elasticsearch 命中。
-    for hit in hits:
-        # 读取命中的文档来源。
-        source = hit.get("_source", {})
-        # 将命中内容、元数据和分数加入响应。
-        results.append({"text": source.get("text", ""), "metadata": source.get("metadata", {}), "score": hit.get("_score")})
-    # 返回全部映射后的文档。
-    return results
+# 使用查询角色生成问题向量以兼容原有调用接口。
+def create_embedding(question: str) -> list[float]:
+    # 调用百炼查询向量生成函数。
+    return create_bailian_embedding(question, "query")
 
 
-# 生成查询向量并执行 Elasticsearch KNN 检索。
+# 定义供 LangChain 向量库调用的百炼 Embeddings 适配器。
+class BailianEmbeddings(Embeddings):
+    # 为检索问题生成查询向量。
+    def embed_query(self, text: str) -> list[float]:
+        # 调用百炼查询向量生成函数。
+        return create_bailian_embedding(text, "query")
+
+    # 为待写入文本生成文档向量。
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        # 逐条调用百炼文档向量生成函数。
+        return [create_bailian_embedding(text, "document") for text in texts]
+
+
+# 创建 LangChain 百炼 Embeddings 实例。
+def get_embeddings() -> Embeddings:
+    # 返回适配现有 1536 维 ES 索引的 Embeddings 实例。
+    return BailianEmbeddings()
+
+
+# 创建连接现有 Elasticsearch 索引的 LangChain 向量库。
+def get_vector_store() -> ElasticsearchStore:
+    # 读取 Elasticsearch 服务地址。
+    es_url = get_required_environment("ES_URL")
+    # 读取可选的 Elasticsearch 用户名。
+    username = os.getenv("ES_USERNAME")
+    # 读取可选的 Elasticsearch 密码。
+    password = os.getenv("ES_PASSWORD")
+    # 创建 Elasticsearch 客户端的额外参数。
+    es_params: dict[str, object] = {}
+    # 读取可选的 CA 证书路径。
+    ca_certs = os.getenv("ES_CA_CERTS")
+    # 在配置证书路径时启用 TLS 证书校验。
+    if ca_certs:
+        # 写入 Elasticsearch 客户端的证书路径参数。
+        es_params["ca_certs"] = ca_certs
+    # 返回绑定现有字段映射的 LangChain Elasticsearch 向量库。
+    return ElasticsearchStore(index_name=get_index_name(), embedding=get_embeddings(), es_url=es_url, es_user=username, es_password=password, vector_query_field="vector", query_field="text", num_dimensions=1536, es_params=es_params or None)
+
+
+# 创建标准 LangChain Retriever。
+def get_retriever(top_k: int):
+    # 获取绑定现有索引的 LangChain 向量库。
+    vector_store = get_vector_store()
+    # 返回按指定数量执行相似度检索的 Retriever。
+    return vector_store.as_retriever(search_kwargs={"k": top_k})
+
+
+# 将 LangChain 文档映射为 API 响应。
+def map_documents(documents: list[Document]) -> list[dict[str, object]]:
+    # 返回正文与元数据组成的结果列表。
+    return [{"text": document.page_content, "metadata": document.metadata} for document in documents]
+
+
+# 通过 LangChain Retriever 检索相近文档。
 def search_documents(question: str, top_k: int = 5) -> dict[str, object]:
-    # 生成问题对应的查询向量。
-    query_vector = create_embedding(question)
-    # 获取已配置的 Elasticsearch 客户端。
-    client = get_es_client()
-    # 将检索服务异常转换为明确的运行时错误。
-    try:
-        # 发起针对向量字段的 KNN 检索。
-        response = client.search(index=get_index_name(), knn={"field": "vector", "query_vector": query_vector, "k": top_k, "num_candidates": top_k * 10}, source=["text", "metadata"])
-    # 捕获 Elasticsearch 客户端请求异常。
-    except Exception as error:
-        # 提供 KNN 检索失败的明确提示。
-        raise RuntimeError("Elasticsearch KNN 检索失败。") from error
-    # 读取 Elasticsearch 命中列表。
-    hits = response.get("hits", {}).get("hits", [])
+    # 获取 LangChain Retriever。
+    retriever = get_retriever(top_k)
+    # 调用 Retriever 检索相关 LangChain 文档。
+    documents = retriever.invoke(question)
     # 返回原始问题和映射后的检索结果。
-    return {"question": question, "results": map_hits(hits)}
+    return {"question": question, "results": map_documents(documents)}
 
 
-# 提供基于问题文本的 RAG 文档检索接口。
+# 提供基于 LangChain Retriever 的 RAG 文档检索接口。
 @router.get("/rag/search")
 # 声明 RAG 检索接口的查询参数与响应结构。
 def rag_search(question: str = Query(min_length=1, description="需要检索的文本"), top_k: int = Query(default=5, ge=1, le=20)) -> dict[str, object]:
-    # 尝试执行文档检索。
+    # 尝试执行 LangChain 文档检索。
     try:
         # 执行文档检索并返回结果。
         return search_documents(question, top_k)
@@ -148,10 +163,6 @@ def rag_search(question: str = Query(min_length=1, description="需要检索的�
         if str(error).startswith("请设置 "):
             # 继续抛出原始配置错误。
             raise
-        # 返回向量检索服务不可用的统一提示。
-        raise HTTPException(status_code=502, detail="向量检索服务暂时不可用，请稍后重试。") from error
-    # 捕获 Elasticsearch 传输层异常。
-    except TransportError as error:
         # 返回向量检索服务不可用的统一提示。
         raise HTTPException(status_code=502, detail="向量检索服务暂时不可用，请稍后重试。") from error
     # 捕获其他未预期的检索异常。

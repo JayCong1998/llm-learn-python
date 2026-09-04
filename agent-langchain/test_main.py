@@ -54,28 +54,19 @@ class FakeEmbeddingResponse:
     output = {"embeddings": [{"embedding": [0.1] * 1536}]}
 
 
-# 定义 Elasticsearch 检索客户端替身。
-class FakeElasticsearchClient:
-    # 初始化检索调用记录。
+# 定义 LangChain Retriever 替身。
+class FakeRetriever:
+    # 初始化检索请求记录。
     def __init__(self):
-        # 保存每次检索请求参数。
-        self.search_calls = []
+        # 保存传入 Retriever 的问题文本。
+        self.questions = []
 
-    # 返回固定的 KNN 命中文档。
-    def search(self, **kwargs):
-        # 记录本次检索请求。
-        self.search_calls.append(kwargs)
-        # 返回包含文档来源和分数的 Elasticsearch 响应。
-        return {
-            "hits": {
-                "hits": [
-                    {
-                        "_source": {"text": "命中文本", "metadata": {"source": "测试文档"}},
-                        "_score": 0.95,
-                    }
-                ]
-            }
-        }
+    # 返回固定的 LangChain 文档对象。
+    def invoke(self, question):
+        # 记录本次检索问题。
+        self.questions.append(question)
+        # 返回包含正文与元数据的 LangChain 文档。
+        return [rag_main.Document(page_content="命中文本", metadata={"source": "测试文档"})]
 
 
 # 验证 embedding 使用 DashScope 配置并返回向量。
@@ -105,29 +96,20 @@ def test_rag_create_embedding_uses_dashscope(monkeypatch):
     assert call_kwargs["text_type"] == "query"
 
 
-# 验证文档检索发送 KNN 查询并映射命中文档。
-def test_rag_search_documents_sends_knn_query(monkeypatch):
-    # 将 embedding 生成替换为固定查询向量。
-    monkeypatch.setattr(rag_main, "create_embedding", lambda question: [0.1] * 1536)
-    # 创建 Elasticsearch 客户端替身。
-    fake_client = FakeElasticsearchClient()
-    # 将客户端工厂替换为测试替身。
-    monkeypatch.setattr(rag_main, "get_es_client", lambda: fake_client)
+# 验证文档检索通过 LangChain Retriever 返回文档。
+def test_rag_search_documents_uses_langchain_retriever(monkeypatch):
+    # 创建 LangChain Retriever 替身。
+    fake_retriever = FakeRetriever()
+    # 将 Retriever 工厂替换为测试替身。
+    monkeypatch.setattr(rag_main, "get_retriever", lambda top_k: fake_retriever)
     # 执行文档检索。
     result = rag_main.search_documents("测试问题", 3)
     # 断言返回结果包含命中文本。
     assert result["results"][0]["text"] == "命中文本"
     # 断言返回结果保留文档元数据。
     assert result["results"][0]["metadata"] == {"source": "测试文档"}
-    # 断言返回结果保留 Elasticsearch 相关性分数。
-    assert result["results"][0]["score"] == 0.95
-    # 断言检索使用了查询向量和 top-k 参数。
-    assert fake_client.search_calls[0]["knn"] == {
-        "field": "vector",
-        "query_vector": [0.1] * 1536,
-        "k": 3,
-        "num_candidates": 30,
-    }
+    # 断言检索问题交给 LangChain Retriever。
+    assert fake_retriever.questions == ["测试问题"]
 
 
 # 验证 RAG 搜索接口返回替身检索结果。
