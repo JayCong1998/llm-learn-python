@@ -4,6 +4,8 @@ from fastapi.testclient import TestClient
 import asyncio
 # 导入 HTTP 异常类型。
 import httpx
+# 导入 pytest 异常断言工具。
+import pytest
 # 导入 LangChain AI 消息类型。
 from langchain_core.messages import AIMessage
 
@@ -13,6 +15,8 @@ import main as app_main
 import streaming_demo.main as streaming_main
 # 导入待测试的工具 Agent 应用模块。
 import tool_agent_demo.main as agent_main
+# 导入待测试的 RAG 检索模块。
+import rag.main as rag_main
 
 
 # 定义可控的流式语言模型替身。
@@ -42,6 +46,160 @@ class FakeToolCallingModel:
             return AIMessage(content="", tool_calls=[{"name": "get_current_time", "args": {}, "id": "time-1"}])
         # 在接收工具结果后返回最终回答。
         return AIMessage(content="已查询当前时间。")
+
+
+# 定义 DashScope embedding 响应替身。
+class FakeEmbeddingResponse:
+    # 提供固定的 embedding 响应数据。
+    output = {"embeddings": [{"embedding": [0.1] * 1536}]}
+
+
+# 定义 Elasticsearch 检索客户端替身。
+class FakeElasticsearchClient:
+    # 初始化检索调用记录。
+    def __init__(self):
+        # 保存每次检索请求参数。
+        self.search_calls = []
+
+    # 返回固定的 KNN 命中文档。
+    def search(self, **kwargs):
+        # 记录本次检索请求。
+        self.search_calls.append(kwargs)
+        # 返回包含文档来源和分数的 Elasticsearch 响应。
+        return {
+            "hits": {
+                "hits": [
+                    {
+                        "_source": {"text": "命中文本", "metadata": {"source": "测试文档"}},
+                        "_score": 0.95,
+                    }
+                ]
+            }
+        }
+
+
+# 验证 embedding 使用 DashScope 配置并返回向量。
+def test_rag_create_embedding_uses_dashscope(monkeypatch):
+    # 设置测试用 DashScope API 密钥。
+    monkeypatch.setenv("DASHSCOPE_API_KEY", "test-key")
+    # 初始化 DashScope 调用参数记录。
+    call_kwargs = {}
+    # 定义记录参数并返回固定响应的 DashScope 替身。
+    def fake_embedding_call(**kwargs):
+        # 保存本次 embedding 调用参数。
+        call_kwargs.update(kwargs)
+        # 返回固定的 embedding 响应。
+        return FakeEmbeddingResponse()
+
+    # 将 DashScope 调用替换为参数记录替身。
+    monkeypatch.setattr(rag_main.TextEmbedding, "call", fake_embedding_call)
+    # 断言问题被转换为预期 embedding 向量。
+    assert rag_main.create_embedding("测试问题") == [0.1] * 1536
+    # 断言使用指定的 embedding 模型。
+    assert call_kwargs["model"] == "text-embedding-v4"
+    # 断言原始问题作为 embedding 输入。
+    assert call_kwargs["input"] == "测试问题"
+    # 断言 embedding 输出维度符合索引配置。
+    assert call_kwargs["dimension"] == 1536
+    # 断言 embedding 请求使用查询文本类型。
+    assert call_kwargs["text_type"] == "query"
+
+
+# 验证文档检索发送 KNN 查询并映射命中文档。
+def test_rag_search_documents_sends_knn_query(monkeypatch):
+    # 将 embedding 生成替换为固定查询向量。
+    monkeypatch.setattr(rag_main, "create_embedding", lambda question: [0.1] * 1536)
+    # 创建 Elasticsearch 客户端替身。
+    fake_client = FakeElasticsearchClient()
+    # 将客户端工厂替换为测试替身。
+    monkeypatch.setattr(rag_main, "get_es_client", lambda: fake_client)
+    # 执行文档检索。
+    result = rag_main.search_documents("测试问题", 3)
+    # 断言返回结果包含命中文本。
+    assert result["results"][0]["text"] == "命中文本"
+    # 断言返回结果保留文档元数据。
+    assert result["results"][0]["metadata"] == {"source": "测试文档"}
+    # 断言返回结果保留 Elasticsearch 相关性分数。
+    assert result["results"][0]["score"] == 0.95
+    # 断言检索使用了查询向量和 top-k 参数。
+    assert fake_client.search_calls[0]["knn"] == {
+        "field": "vector",
+        "query_vector": [0.1] * 1536,
+        "k": 3,
+        "num_candidates": 30,
+    }
+
+
+# 验证 RAG 搜索接口返回替身检索结果。
+def test_rag_search_api_returns_documents(monkeypatch):
+    # 将文档检索替换为固定响应。
+    monkeypatch.setattr(rag_main, "search_documents", lambda question, top_k: {"question": question, "results": [{"text": "替身检索结果"}]})
+    # 创建应用测试客户端。
+    client = TestClient(app_main.app)
+    # 请求 RAG 搜索接口。
+    response = client.get("/rag/search", params={"question": "测试"})
+    # 断言响应成功。
+    assert response.status_code == 200
+    # 断言接口返回替身检索结果。
+    assert response.json() == {"question": "测试", "results": [{"text": "替身检索结果"}]}
+
+
+# 验证缺少百炼密钥时 embedding 创建明确失败。
+def test_rag_create_embedding_requires_dashscope_api_key(monkeypatch):
+    # 清除百炼 API 密钥配置。
+    monkeypatch.delenv("DASHSCOPE_API_KEY", raising=False)
+    # 断言缺少配置时抛出明确运行时异常。
+    with pytest.raises(RuntimeError, match="请设置 DASHSCOPE_API_KEY 环境变量。"):
+        # 请求生成 embedding。
+        rag_main.create_embedding("测试问题")
+
+
+# 验证百炼响应缺少 embedding 时创建操作返回统一错误。
+def test_rag_create_embedding_rejects_missing_embeddings(monkeypatch):
+    # 设置测试用百炼 API 密钥。
+    monkeypatch.setenv("DASHSCOPE_API_KEY", "test-key")
+    # 将百炼调用替换为缺少输出的响应。
+    monkeypatch.setattr(rag_main.TextEmbedding, "call", lambda **kwargs: object())
+    # 断言无效响应被转换为统一错误。
+    with pytest.raises(RuntimeError, match="百炼 embedding 生成失败。"):
+        # 请求生成 embedding。
+        rag_main.create_embedding("测试问题")
+
+
+# 验证百炼调用异常时创建操作返回统一错误。
+def test_rag_create_embedding_converts_provider_exception(monkeypatch):
+    # 设置测试用百炼 API 密钥。
+    monkeypatch.setenv("DASHSCOPE_API_KEY", "test-key")
+    # 定义抛出服务异常的百炼替身。
+    def fail_embedding_call(**kwargs):
+        # 模拟百炼服务异常。
+        raise ValueError("provider unavailable")
+
+    # 将百炼调用替换为失败替身。
+    monkeypatch.setattr(rag_main.TextEmbedding, "call", fail_embedding_call)
+    # 断言服务异常被转换为统一错误。
+    with pytest.raises(RuntimeError, match="百炼 embedding 生成失败。"):
+        # 请求生成 embedding。
+        rag_main.create_embedding("测试问题")
+
+
+# 验证检索服务故障时接口返回统一网关错误。
+def test_rag_search_api_returns_gateway_error_for_search_failure(monkeypatch):
+    # 定义抛出 KNN 检索错误的替身。
+    def fail_search_documents(question, top_k):
+        # 模拟 Elasticsearch KNN 检索失败。
+        raise RuntimeError("Elasticsearch KNN 检索失败。")
+
+    # 将文档检索替换为失败替身。
+    monkeypatch.setattr(rag_main, "search_documents", fail_search_documents)
+    # 创建应用测试客户端。
+    client = TestClient(app_main.app)
+    # 请求 RAG 搜索接口。
+    response = client.get("/rag/search", params={"question": "测试"})
+    # 断言接口返回网关错误。
+    assert response.status_code == 502
+    # 断言接口返回统一错误详情。
+    assert response.json() == {"detail": "向量检索服务暂时不可用，请稍后重试。"}
 
 
 # 验证天气工具将网络错误转换为文本结果。

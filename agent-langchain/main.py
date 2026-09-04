@@ -6,6 +6,8 @@ from fastapi import FastAPI
 from streaming_demo.main import router as streaming_router
 # 导入工具 Agent 路由。
 from tool_agent_demo.main import router as tool_agent_router
+# 导入 RAG 检索路由。
+from rag.main import router as rag_router
 # 导入 Uvicorn 服务运行器。
 import uvicorn
 
@@ -16,6 +18,8 @@ app = FastAPI(title="LangChain MiniMax Demos", debug=True)
 app.include_router(streaming_router)
 # 挂载工具 Agent 路由。
 app.include_router(tool_agent_router)
+# 挂载 RAG 检索路由。
+app.include_router(rag_router)
 
 
 # 提供统一的服务存活检查接口。
