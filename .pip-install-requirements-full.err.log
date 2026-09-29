@@ -1,0 +1,3 @@
+ERROR: Could not install packages due to an OSError: [WinError 32] 另一个程序正在使用此文件，进程无法访问。: 'D:\\develop\\CodeProject\\llm-learn-python\\.venv313\\Lib\\site-packages\\mpmath\\calculus\\odes.py'
+Check the permissions.
+

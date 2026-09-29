@@ -1,0 +1,5 @@
+WARNING: Ignoring invalid distribution ~qlalchemy (D:\develop\CodeProject\llm-learn-python\.venv313\Lib\site-packages)
+WARNING: Ignoring invalid distribution ~umpy (D:\develop\CodeProject\llm-learn-python\.venv313\Lib\site-packages)
+ERROR: Could not install packages due to an OSError: [WinError 32] 另一个程序正在使用此文件，进程无法访问。: 'D:\\develop\\CodeProject\\llm-learn-python\\.venv313\\Lib\\site-packages\\torch\\testing\\_internal\\distributed\\distributed_test.py'
+Check the permissions.
+
