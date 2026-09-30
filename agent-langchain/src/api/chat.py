@@ -34,7 +34,7 @@ class ChatResponse(BaseModel):
 async def chat(request: ChatRequest) -> ApiResponse[ChatResponse]:
     # 在未配置密钥时返回清楚的客户端错误。
     if not settings.dashscope_api_key:
-        # 由全局异常处理器映射模型服务错误码并生成统一响应体。
+        # 抛出异常 由全局异常处理器映射模型服务错误码并生成统一响应体。
         raise HTTPException(status_code=503, detail="请先在 .env 中配置 DASHSCOPE_API_KEY")
     # 使用项目配置创建 Qwen 聊天模型。
     model = ChatOpenAI(
