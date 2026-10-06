@@ -42,7 +42,7 @@ Trouble Brewing 是官方推荐给新玩家的入门剧本，包含 13 名镇民
 | 14 | 9 | 1 | 3 | 1 |
 | 15 | 9 | 2 | 3 | 1 |
 
-游戏引擎应落实全部 22 个角色的标准能力，不让 LLM 裁决游戏规则。特殊登记信息（如 Recluse、Spy）、Drunk 的错误认知、Poisoner 的中毒、Fortune Teller 的 red herring、Virgin 首次被提名、Slayer 一次性能力、Ravenkeeper 夜间死亡触发、Scarlet Woman 接替恶魔、Imp 自刀转移、Butler 的投票限制、Saint 被处决的胜负检查、Soldier 防恶魔攻击和 Mayor 的夜间替代死亡等情况由规则服务依据角色定义处理。执行某些信息能力时，Storyteller 可提供错误信息；这类信息由独立的故事主持逻辑生成并记录其依据，不由 Agent 自行改写服务器状态。
+游戏引擎应落实全部 22 个角色的标准能力，不让 LLM 裁决游戏规则。Drunk 在设置时占外来者名额，以一个未在局中的镇民角色 token 作为它的认知角色；它相信自己拥有该镇民能力，但其真实身份仍为没有能力的 Drunk。若它按认知角色行动，该行动不产生角色效果，但 Storyteller 可给它不可靠信息。特殊登记信息（如 Recluse、Spy，即使死亡后仍可能改变登记）、Poisoner 的中毒、Fortune Teller 的 red herring、Virgin 首次被提名、Slayer 一次性能力、Ravenkeeper 夜间死亡触发、Scarlet Woman 接替恶魔、Imp 自刀转移、Butler 的投票限制、Saint 被处决的胜负检查、Soldier 防恶魔攻击和 Mayor 的夜间替代死亡等情况由规则服务依据角色定义处理。执行某些信息能力时，Storyteller 可提供错误信息；这类信息由独立的故事主持逻辑生成并记录其依据，不由 Agent 自行改写服务器状态。
 
 不实现跨剧本的 Jinx、自定义脚本平衡、旅行者和其他剧本角色。每个 Trouble Brewing 角色及其标准交互都必须有独立定义与覆盖证据；无法确定的冲突应由规则层明确处理并保留事件记录，不能让模型临场发明裁定。
 
@@ -78,7 +78,7 @@ LangGraph 的 `StateGraph` 由状态、节点和边组成，并在调用前编�
 
 ### 玩家 Agent 的知识隔离
 
-模型调用只接收当前发言或行动所需的上下文：公开脚本、公开对话与事件、玩家自己获知的角色与阵营、该玩家的独立记忆、已收到的私有信息及邪恶队友信息（仅适用于规则允许得知的座位）。Drunk 只会看到自己以为的 Investigator 角色，不能向它泄露服务器记录的真实 Drunk 身份。不得传入完整 Grimoire、其他 AI 的私有记录、未公开角色分配或内部裁定记录；例外是活着的 Spy 在有效夜晚按其能力获知的 Grimoire，该信息只进入 Spy 座位的私有上下文。恶魔 bluff、邪恶队伍初始信息和 Spy 视图都必须按规则阶段和角色能力定向投影。人类端点同样只显示人类实际获知的私有信息。SSE 只发送公开聊天、公开死亡/处决/阶段变化以及显式发给人类的私密信息事件。
+模型调用只接收当前发言或行动所需的上下文：公开脚本、公开对话与事件、玩家自己获知的角色与阵营、该玩家的独立记忆、已收到的私有信息及邪恶队友信息（仅适用于规则允许得知的座位）。Drunk 只看到自己认为的镇民角色及该角色的能力说明，不能获知服务器记录的真实 Drunk 身份。不得传入完整 Grimoire、其他 AI 的私有记录、未公开角色分配或内部裁定记录；例外是活着的 Spy 在有效夜晚按其能力获知的 Grimoire，该信息只进入 Spy 座位的私有上下文。恶魔 bluff、邪恶队伍初始信息和 Spy 视图都必须按规则阶段和角色能力定向投影。人类端点同样只显示人类实际获知的私有信息。SSE 只发送公开聊天、公开死亡/处决/阶段变化以及显式发给人类的私密信息事件。
 
 模型输出使用 Pydantic schema 约束为 `speak`、`nominate`、`vote`、`night_action` 等有限动作。服务端验证角色、存活状态、每日次数、夜间目标和投票令牌；验证失败时请求一次修正，仍失败则走可见的安全策略并记录非敏感错误摘要。不给前端显示模型的隐藏推理或完整 prompt。
 
@@ -113,7 +113,7 @@ LangGraph 的 `StateGraph` 由状态、节点和边组成，并在调用前编�
 
 ## 验收标准
 
-1. 能从开始页创建 5 至 15 人局；每个局有 1 名人类与其余 AI 座位，角色组成符合官方人数表，Baron 的设置效果正确，角色分配随机且人类只看到规则告知自己的身份、阵营和私有信息。
+1. 能从开始页创建 5 至 15 人局；每个局有 1 名人类与其余 AI 座位，角色组成符合官方人数表，Baron 的设置效果正确，Drunk 以外来者计数但获得一个未在局中的镇民认知角色，且玩家只看到规则告知自己的身份、阵营和私有信息。
 2. Trouble Brewing 的全部 22 个角色都有能力定义、有效触发阶段与领域验证；角色触发、设置修改、间接胜负效果和角色信息展示均有规则单元验证覆盖。
 3. LangGraph 可从开局推进首夜，暂停等待人类行动，按命令恢复，经历讨论、提名、投票、处决和后续夜晚，并在胜负条件出现时结束。暂停、重连和恢复不得重复应用已提交动作。
 4. 本地策略模式无需模型密钥即可从设置推进到完整结局；两个阵营的胜利路径均可由确定性场景走通。配置模型时，多个 AI 座位以独立私有上下文生成公开对话与行动。
@@ -137,6 +137,9 @@ LangGraph 的 `StateGraph` 由状态、节点和边组成，并在调用前编�
 - [官方 Rules Explanation](https://wiki.bloodontheclocktower.com/Rules_Explanation)
 - [官方 States 说明](https://wiki.bloodontheclocktower.com/States)
 - [官方 Baron 规则说明](https://wiki.bloodontheclocktower.com/Baron)
+- [官方 Drunk 规则说明](https://wiki.bloodontheclocktower.com/Drunk)
+- [官方 Spy 规则说明](https://wiki.bloodontheclocktower.com/Spy)
+- [官方 Recluse 规则说明](https://wiki.bloodontheclocktower.com/Recluse)
 - [LangGraph Graph API](https://docs.langchain.com/oss/python/langgraph/graph-api)
 - [LangGraph Memory 与持久化](https://docs.langchain.com/oss/python/langgraph/add-memory)
 - [LangGraph SQLite checkpoint 实现与安全建议](https://github.com/langchain-ai/langgraph/blob/main/libs/checkpoint-sqlite/README.md)

@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 # 读取模型连接配置。
 from core.config import settings
 # 导入统一响应模型与构造方法。
-from core.response import ApiResponse, success_response
+from core.result import ApiResponse, success_response
 
 # 创建聊天 API 路由。
 router = APIRouter()
@@ -46,3 +46,4 @@ async def chat(request: ChatRequest) -> ApiResponse[ChatResponse]:
     result = await model.ainvoke([HumanMessage(content=request.message)])
     # 将模型文本回复封装成 API 响应。
     return success_response(ChatResponse(reply=str(result.content)))
+

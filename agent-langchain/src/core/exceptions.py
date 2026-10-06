@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 # 导入统一错误定义与失败响应构造方法。
-from core.response import ErrorDefinition, failure_response
+from core.result import ErrorDefinition, failure_response
 
 # 初始化当前模块的异常日志记录器。
 logger = logging.getLogger(__name__)
@@ -72,3 +72,4 @@ def register_exception_handlers(app: FastAPI) -> None:
             status_code=500,
             content=failure_response(ErrorDefinition.INTERNAL_ERROR).model_dump(),
         )
+

@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#F8FAFD"/><stop offset="1" stop-color="#EEF3FA"/></linearGradient>
+    <linearGradient id="brand" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#635BEE"/><stop offset="1" stop-color="#8B7CF6"/></linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="10" stdDeviation="18" flood-color="#25324A" flood-opacity=".08"/></filter>
+    <style>
+      .ui{font-family:Inter,"Noto Sans SC","Microsoft YaHei",sans-serif}.muted{fill:#8A94A6}.ink{fill:#20283A}.small{font-size:12px}.body{font-size:14px}.label{font-size:13px;font-weight:600}.title{font-size:18px;font-weight:700}
+    </style>
+  </defs>
+  <rect width="1600" height="1000" fill="url(#bg)"/>
+  <rect x="42" y="38" width="1516" height="924" rx="24" fill="#FFFFFF" filter="url(#shadow)"/>
+  <rect x="42" y="38" width="310" height="924" rx="24" fill="#FBFCFE"/>
+  <path d="M352 38v924" stroke="#EDF0F5"/>
+  <!-- Sidebar brand and actions -->
+  <g class="ui">
+    <rect x="68" y="65" width="38" height="38" rx="12" fill="url(#brand)"/>
+    <path d="M79 84c5-10 12-10 17 0-5 10-12 10-17 0Z" fill="none" stroke="#fff" stroke-width="2"/>
+    <text x="118" y="91" class="ink" font-size="18" font-weight="700">知伴 AI</text>
+    <rect x="68" y="128" width="258" height="46" rx="12" fill="#F0EFFF"/>
+    <path d="M88 144h18v15H88zM91 140h12" fill="none" stroke="#635BEE" stroke-width="1.8" stroke-linejoin="round"/>
+    <text x="120" y="157" fill="#5149CC" class="label">新建对话</text>
+    <text x="70" y="211" class="muted small" font-weight="700" letter-spacing="1">最近对话</text>
+    <rect x="58" y="227" width="278" height="58" rx="11" fill="#F1F2FF"/>
+    <rect x="70" y="244" width="4" height="24" rx="2" fill="#6C63E8"/>
+    <text x="88" y="251" class="ink body" font-weight="600">FastAPI 如何接入 Vue？</text>
+    <text x="88" y="271" class="muted small">今天 · 10:42</text>
+    <text x="88" y="317" class="ink body">帮我整理项目目录结构</text>
+    <text x="88" y="337" class="muted small">昨天 · 16:18</text>
+    <text x="88" y="383" class="ink body">Python 异步编程入门</text>
+    <text x="88" y="403" class="muted small">昨天 · 14:06</text>
+    <text x="88" y="449" class="ink body">LangChain Agent 工具调用</text>
+    <text x="88" y="469" class="muted small">10月1日</text>
+    <path d="M68 891h258" stroke="#EDF0F5"/>
+    <circle cx="91" cy="922" r="18" fill="#E8E7FF"/><text x="91" y="927" text-anchor="middle" fill="#5B52D6" font-size="12" font-weight="700">林</text>
+    <text x="120" y="919" class="ink label">林同学</text><text x="120" y="938" class="muted small">个人工作区</text>
+    <circle cx="310" cy="922" r="2" fill="#9AA3B2"/><circle cx="317" cy="922" r="2" fill="#9AA3B2"/><circle cx="324" cy="922" r="2" fill="#9AA3B2"/>
+  </g>
+  <!-- Main header -->
+  <g class="ui">
+    <text x="390" y="82" class="ink title">FastAPI 如何接入 Vue？</text>
+    <rect x="1364" y="57" width="148" height="38" rx="10" fill="#fff" stroke="#E7EAF0"/>
+    <circle cx="1385" cy="76" r="4" fill="#37B985"/><text x="1397" y="81" class="ink small" font-weight="600">Qwen · 在线</text>
+    <path d="M1475 70l5 5-5 5m14-10l5 5-5 5" fill="none" stroke="#8B94A4" stroke-width="1.5"/>
+    <path d="M378 112h1134" stroke="#F0F2F6"/>
+    <!-- date -->
+    <rect x="900" y="135" width="108" height="27" rx="13.5" fill="#F5F6F9"/><text x="954" y="153" text-anchor="middle" class="muted small">今天 10:42</text>
+    <!-- user message -->
+    <circle cx="1450" cy="207" r="17" fill="#DBEAFE"/><text x="1450" y="212" text-anchor="middle" fill="#3973B8" font-size="11" font-weight="700">我</text>
+    <rect x="1030" y="184" width="390" height="74" rx="17" fill="#F2F0FF"/>
+    <text x="1054" y="213" class="ink body">我已经有一个 FastAPI 后端，想把 Vue</text><text x="1054" y="236" class="ink body">页面放到项目里，应该怎么组织？</text>
+    <text x="1354" y="278" class="muted small">10:42</text>
+    <!-- assistant -->
+    <rect x="390" y="301" width="34" height="34" rx="11" fill="url(#brand)"/>
+    <path d="M399 318c4-8 10-8 15 0-5 8-11 8-15 0Z" fill="none" stroke="#fff" stroke-width="1.7"/>
+    <text x="438" y="314" class="ink label">知伴 AI</text><text x="503" y="314" class="muted small">· Qwen</text>
+    <text x="390" y="363" class="ink body">可以采用前后端分离的目录结构，开发阶段分别运行，部署时由</text>
+    <text x="390" y="388" class="ink body">FastAPI 或 Nginx 提供 Vue 构建后的静态文件。</text>
+    <text x="390" y="432" class="ink body" font-weight="700">推荐的项目结构</text>
+    <rect x="390" y="449" width="740" height="151" rx="12" fill="#F7F8FA" stroke="#EAEDF2"/>
+    <text x="414" y="478" fill="#7C8595" class="small">项目目录</text>
+    <text x="414" y="505" fill="#39465B" font-family="Consolas,monospace" font-size="13">agent-langchain/</text>
+    <text x="434" y="528" fill="#59667B" font-family="Consolas,monospace" font-size="13">├── src/          <tspan fill="#929BAB"># FastAPI 后端</tspan></text>
+    <text x="434" y="551" fill="#59667B" font-family="Consolas,monospace" font-size="13">└── frontend/     <tspan fill="#929BAB"># Vue 3 + Vite</tspan></text>
+    <text x="454" y="574" fill="#59667B" font-family="Consolas,monospace" font-size="13">└── src/</text>
+    <text x="390" y="635" class="ink body">Vite 开发服务器可以把 <tspan fill="#655CE1" font-family="Consolas,monospace">/api</tspan> 请求代理到 FastAPI，例如：</text>
+    <rect x="390" y="654" width="740" height="53" rx="10" fill="#F7F8FA" stroke="#EAEDF2"/>
+    <text x="414" y="687" fill="#5B52D6" font-family="Consolas,monospace" font-size="13">proxy: &#123; '/api': 'http://127.0.0.1:8000' &#125;</text>
+    <!-- reaction toolbar -->
+    <g transform="translate(390 729)" fill="none" stroke="#9AA3B2" stroke-width="1.5"><path d="M0 3h15v12H0zM4 0h15v12"/><path d="M31 3c2-3 7-2 7 2 0 4-7 8-7 8s-7-4-7-8c0-4 5-5 7-2Z"/><path d="M62 3h14v13H62zM66 0h14v13"/></g>
+    <text x="480" y="743" class="muted small">复制</text><text x="528" y="743" class="muted small">有帮助</text><text x="600" y="743" class="muted small">重新生成</text>
+    <!-- follow-up suggestions -->
+    <rect x="390" y="782" width="231" height="34" rx="17" fill="#fff" stroke="#E5E8EF"/><text x="408" y="804" class="muted small">如何配置 FastAPI 静态目录？</text>
+    <rect x="633" y="782" width="204" height="34" rx="17" fill="#fff" stroke="#E5E8EF"/><text x="651" y="804" class="muted small">帮我写一个代理示例</text>
+    <!-- composer -->
+    <rect x="390" y="842" width="1122" height="86" rx="18" fill="#fff" stroke="#DEE3EC" stroke-width="1.2"/>
+    <text x="414" y="876" class="muted body">给知伴 AI 发送消息…</text>
+    <g transform="translate(414 894)" fill="none" stroke="#8C96A6" stroke-width="1.6" stroke-linecap="round"><path d="M7 1v12a5 5 0 0 0 10 0V5a3 3 0 0 0-6 0v8a1 1 0 0 0 2 0V6"/></g>
+    <text x="442" y="911" class="muted small">添加附件</text>
+    <text x="1257" y="909" class="muted small">Enter 发送</text>
+    <rect x="1430" y="883" width="58" height="34" rx="11" fill="url(#brand)"/>
+    <path d="M1449 900l18-8-6 17-3-7-9-2Z" fill="none" stroke="#fff" stroke-width="1.7" stroke-linejoin="round"/>
+    <text x="390" y="947" class="muted" font-size="11">知伴 AI 可能会出错，请核对重要信息。</text>
+  </g>
+</svg>

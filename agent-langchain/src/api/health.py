@@ -1,7 +1,7 @@
 # 导入 FastAPI 路由定义工具。
 from fastapi import APIRouter
 # 导入统一响应模型与构造方法。
-from core.response import ApiResponse, success_response
+from core.result import ApiResponse, success_response
 
 # 创建健康检查 API 路由。
 router = APIRouter()
@@ -16,3 +16,4 @@ router = APIRouter()
 async def health_check() -> ApiResponse[dict[str, str]]:
     # 使用固定状态表示服务已启动。
     return success_response({"status": "server ok"})
+

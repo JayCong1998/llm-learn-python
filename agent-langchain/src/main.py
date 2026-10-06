@@ -15,9 +15,17 @@ from api.router import api_router
 from core.config import settings
 # 导入全局异常处理器注册函数。
 from core.exceptions import register_exception_handlers
+# 导入全局请求日志中间件注册函数。
+from core.request_logging import register_request_logging
+# 导入应用日志配置函数以隔离业务日志格式。
+from core.logging_config import configure_app_logging
 
+# 配置应用专用日志输出。
+configure_app_logging()
 # 使用项目配置创建 HTTP 应用。
 app = FastAPI(title=settings.app_name, debug=settings.debug)
+# 为所有 HTTP 请求注册统一日志中间件。
+register_request_logging(app)
 # 为应用注册统一异常处理器。
 register_exception_handlers(app)
 # 将业务 API 路由挂载到应用。
